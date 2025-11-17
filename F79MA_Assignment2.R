@@ -24,7 +24,18 @@ x_bar = mean(My_Data)
 Quantity1 = k / x_bar
 
 # Deriving the posterior density for p and finding its mean
-n = 100
-s = sum(My_Data - 5)
-posterior = rbeta(n, shape1 = k * n, s + (1/2))
-Quantity2 = mean(posterior)
+n = 1000
+s = sum(My_Data - k)
+alpha_post = n * k
+beta_post = s + (1/2)
+posterior_samples = rbeta(n, shape1 = k * n, shape2 = beta_post)
+Quantity2 = mean(posterior_samples)
+
+# Generating samples for prior
+eps = 0.001
+p_values = seq(0.001, 0.999, length = n)
+prior_samples = rbeta(n, shape1 = eps, shape2 = 0.5)
+
+# Plotting the prior and posterior distributions
+hist(prior_samples, breaks = 1000, xlim = c(0, 0.02), probability = TRUE, col = 'red')
+hist(posterior_samples, probability = TRUE, col = 'blue')
