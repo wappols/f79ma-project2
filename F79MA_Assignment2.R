@@ -82,7 +82,7 @@ Quantity3 = exp(lchoose(z - 1, k - 1) +
 realisations = 10000
 p_samples = rbeta(realisations, alpha_post, beta_post)
 
-# Note: The extra " + r" term is due to the parameterisation of NegBin
+# Note: The extra " + k" term is due to the parameterisation of NegBin
 # (rnbinom() counts the no. of failures before k successes)
 posterior_predictive_samples = rnbinom(realisations, size = k, prob = p_samples) + k
 
