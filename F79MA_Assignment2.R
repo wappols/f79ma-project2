@@ -27,54 +27,100 @@ Quantity1 = k / x_bar
 
 # Deriving the posterior density for p and finding its mean
 n = 1000
-S = sum(My_Data - k)
 alpha_post = n * k
-beta_post = S + 0.5
-posterior_samples = rbeta(n, shape1 = alpha_post, shape2 = beta_post)
+beta_post = sum(My_Data - k) + 0.5
+p_vals = seq(0.001, 0.999, length.out = n)
+posterior_density = dbeta(p_vals, shape1 = alpha_post, shape2 = beta_post)
 Quantity2 = alpha_post / (alpha_post + beta_post)
 
 # Defining the Jeffrey's prior
-p_vals = seq(0.001, 0.999, length.out = n)
-jeff_prior = 1 / (p_vals * sqrt(1 - p_vals))
+jeffrey_prior = 1 / (p_vals * sqrt(1 - p_vals))
 
-# Put samples into a data frame for ggplot
-jeff_df = data.frame(
-  p = p_vals,
-  value = jeff_prior,
-  type = "Jeffrey's Prior"
+# Putting samples into a data frame for ggplot
+prior_posterior_df = rbind(
+  data.frame(
+    p = p_vals,
+    density = jeffrey_prior,
+    type = "Jeffrey's Prior"
+  ),
+  data.frame(
+    p = p_vals,
+    density = posterior_density,
+    type = "Posterior"
+  )
 )
-post_df = data.frame(
-  p = posterior_samples,
-  type = "Posterior"
-  
-)
-ggplot() +
-  geom_line(data = jeff_df, aes(x = p, y = value, colour = "Jeffreys Prior (Improper)"), linewidth = 1) +
-  geom_density(data = post_df, aes(x = p, colour = "Posterior"), adjust = 2, linewidth = 1) +
-  coord_cartesian(xlim = c(0, 0.25)) +
+
+ggplot(data = prior_posterior_df, aes(x = p, y = density, colour = type)) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~type, scales = "free_y") +
   labs(
     title = "Jeffrey's Prior vs. Posterior",
     x = "p",
     y = "Density"
   ) +
-  scale_colour_manual(values = c("Jeffreys Prior (Improper)" = "blue", "Posterior" = "red")) +
+  scale_colour_manual(values = c(
+    "Jeffrey's Prior" = "mediumpurple4",
+    "Posterior" = "chartreuse4"
+  )) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 
 
-# Posterior predictive distribution and using this
+# Using the pmf of the predictive distribution
 # to find the value of pi(Z = 5|x)
 
 z = 5
-binomial_coef = choose(z - 1, k - 1)
-Quantity3 = binomial_coef * exp(lbeta(alpha_post + k, beta_post + z - k) - lbeta(alpha_post, beta_post))
+
+# Using lbeta() to prevent underflowing to 0
+Quantity3 = exp(lchoose(z - 1, k - 1) +
+                lbeta(alpha_post + k, beta_post + z - k) -
+                lbeta(alpha_post, beta_post))
 
 # Simulating 10000 realizations from the posterior
 # predictive distribution
 
 realisations = 10000
-posterior_predictive_samples = rnbinom(realisations, size = k, prob = posterior_samples)
+p_samples = rbeta(realisations, alpha_post, beta_post)
 
-hist(posterior_predictive_samples, breaks = 30, freq = F,main = "Posterior Predictive Distribution",
-     xlab = "Count", col = "lightblue",)
-hist(Full_Data, breaks = 30, freq = F, main = "Histogram of Full_Data", col = "lightgreen", add = T)
+# Note: The extra " + r" term is due to the parameterisation of NegBin
+# (rnbinom() counts the no. of failures before k successes)
+posterior_predictive_samples = rnbinom(realisations, size = k, prob = p_samples) + k
+
+
+# Creating a dataframe of the predictive 
+# distribution and Full_Data
+
+pred_obs_df = rbind(
+  data.frame(
+    value = posterior_predictive_samples,
+    source = "Predictive"
+  ),
+  data.frame(
+    value = Full_Data,
+    source = "Full_Data"
+  )
+)
+
+# Plotting both histograms together
+
+ggplot(pred_obs_df, aes(x = value, fill = source)) +
+  geom_histogram(
+    binwidth = 2,
+    color = "black",
+    alpha = 0.5,
+    position = "identity"
+  ) +
+  facet_wrap(~source, scales = "free") +
+  scale_fill_manual(
+    values = c(
+    "Predictive" = "chartreuse2",
+    "Full_Data" = "orchid2")
+  ) +
+  labs(
+    title = "Histograms of Posterior Predictive Distribution and Full_Data",
+    x = "Count",
+    y = "Frequency",
+    fill = "Distribution"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
